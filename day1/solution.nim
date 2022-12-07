@@ -2,13 +2,13 @@ import std/strutils
 import std/algorithm
 import std/strformat
 
-let input = readFile("./input.txt").split({'\n'})
+let content = readFile("./input.txt").split({'\n'})
 
 var 
   sum : int
   sums: seq[int]
 
-for line in input:
+for line in content:
   if line.isEmptyOrWhitespace():
     sums.add(sum)
     sum = 0

@@ -1,12 +1,10 @@
 import std/strutils
 import std/sequtils
-import std/tables
 
-let content = readFile("./input.txt").split("\n")
+let content = readFile("./input.txt").strip().split("\n")
 let rounds = map(
-    # Filter out empty lines
-    filter(content, proc(line: string): bool = not line.isEmptyOrWhitespace()),
-    # Split line into pair of strings
+    content,
+    # Split line into pair of characters
     proc(round: string): tuple[other: char, self: char] = 
        var splitted = round.split(" ")
        (splitted[0][0], splitted[1][0]))

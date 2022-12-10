@@ -1,12 +1,11 @@
 import std/strutils
 import std/algorithm
-import std/strformat
 
-let content = readFile("./input.txt").split({'\n'})
+let content = readFile("./input.txt").splitLines()
 
-var 
-  sum : int
-  sums: seq[int]
+var
+  sum = 0
+  sums = newSeq[int]()
 
 for line in content:
   if line.isEmptyOrWhitespace():
@@ -17,5 +16,5 @@ for line in content:
 
 sort(sums, system.cmp[int], Descending)
 
-echo fmt"Part 1: {sums[0]}"
-echo fmt"Part 2: {sums[0]+sums[1]+sums[2]}"
+echo sums[0]
+echo sums[0]+sums[1]+sums[2]

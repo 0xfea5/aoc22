@@ -1,11 +1,10 @@
 import std/strutils
 import std/sequtils
-import std/enumerate
 import std/tables
 
 proc solve(message: string, nUniq: int): int =
   var cntUniq = initCountTable[char]()
-  
+
   # init found
   var uniq = 0
   for c in message[0 ..< nUniq]:
@@ -17,7 +16,7 @@ proc solve(message: string, nUniq: int): int =
     message[0 ..< message.len()-nUniq],
     message[nUniq ..< message.len()])
 
-  for i, pair in enumerate(pairs):
+  for i, pair in pairs:
     if uniq == nUniq:
       return i+nUniq
 

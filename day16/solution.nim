@@ -4,6 +4,7 @@ import re
 import tables
 import strformat
 import algorithm
+import sets
 
 type
   NodeData = tuple
@@ -66,53 +67,113 @@ proc setup(input: NodeGraph): ExtendedNodeGraph =
     result[node] = (input[node].pressure, filtConnected)
     # echo fmt"{node} : {result[node]}"
 
+type Agent = tuple
+  valv: string
+  time: int
 
-var dp: Table[string, int]
-proc normalize(visited: string): string =
-  var s: seq[string]
-  for i in countup(0, visited.len()-1, 2):
-    s.add(visited[i..i+1])
-  result = s.sorted(system.cmp[string]).join()
+# Nodes with their neighbors
+var Graph: ExtendedNodeGraph
+# Node names
+var nodes = newSeq[string]()
 
-proc dfs(input: ExtendedNodeGraph, src: string, visited: string, time: int): int =
-  if time <= 1 or visited.len() == input.len():
+proc playing(agent: Agent, time: int): bool =
+  agent.time == time
+
+proc agentScores(agent: Agent, time: int): int =
+  Graph[agent.valv].pressure * (time-1)
+
+# type ValveSet = uint64
+# proc incl(set: var ValveSet, valve: uint64): void =
+#   set = set or valve
+
+var part2 = false
+proc dfs(visited: HashSet[string], time: int, human, elephant: Agent): int =
+  # echo fmt"time: {time}, human: {human}, elephant: {elephant}"
+  let remainingValves = nodes.len() - visited.len() 
+  if time <= 1 or remainingValves == 0 or (part2 and human.valv == elephant.valv and remainingValves > 1):
     return 0
 
-  # if dp.contains(visited):
-  #   return dp[visited]
+  let
+    neighborsHuman = Graph[human.valv].neighbors
+    neighborsElephant = Graph[elephant.valv].neighbors
+  var
+    # check for race
+    humanScore = if human.valv notin visited: human.agentScores(time) else: 0
+    elephantScore = if elephant.valv notin visited: elephant.agentScores(time) else: 0
 
-  let visitedNorm = visited.normalize()
-  let selfScore = (time-1) * input[src].pressure
-  var maxSubscore = 0
-  var maxNeighbor = "undefined" 
-  # echo fmt"{src}({selfScore}): "
-  for neighbor in input[src].neighbors.keys():
-    if neighbor in visited:
-      continue
-    let distance = input[src].neighbors[neighbor]
-    let subScore = dfs(input, neighbor, visitedNorm & neighbor, time - 1 - distance)
-    if subScore > maxSubscore:
-      maxSubscore = subScore
-      maxNeighbor = neighbor
+  var bestNextScore = 0
+  if human.playing(time) and elephant.playing(time):
+    for nextHuman in nodes:
+      for nextElephant in nodes:
+        if nextHuman in visited or nextElephant in visited:
+          continue
+        let
+          nextTimeHuman = time - 1 - neighborsHuman[nextHuman]
+          nextTimeElephant = time - 1 - neighborsElephant[nextElephant]
+          nextTime = max(nextTimeHuman, nextTimeElephant)
+          nextScore = dfs(union(visited, toHashSet(@[elephant.valv, human.valv])), nextTime, (nextHuman, nextTimeHuman), (nextElephant, nextTimeElephant))
+        bestNextScore = max(bestNextScore, nextScore)
 
-  # echo fmt"{src}({selfScore}) => {maxNeighbor}({maxSubscore})"
-  result = selfScore + maxSubscore
-  # dp[visitedNorm & maxNeighbor] = result
-  # echo result
+    # elephant keeps his score only if he isn't in the same valve as human
+    elephantScore = (if human != elephant: elephantScore else: 0)
+    return bestNextScore + humanScore + elephantScore
 
-proc solve(input: NodeGraph, time: int): int =
-  let completeGraph = setup(input)
-  # Table of delays to get from starting node "AA" to current
-  let initDelays = completeGraph["AA"].neighbors
+  if human.playing(time):
+    for nextHuman in nodes:
+      if nextHuman in visited:
+        continue
+      let
+        nextTimeHuman = time - 1 - neighborsHuman[nextHuman]
+        nextTime = max(nextTimeHuman, elephant.time)
+        nextScore = dfs(union(visited, toHashSet(@[human.valv])), nextTime, (nextHuman, nextTimeHuman), elephant)
+      bestNextScore = max(bestNextScore, nextScore)
 
-  for node in completeGraph.keys():
-    if node == "AA":
-      continue
-    let startTime = time - initDelays[node]
-    result = max(result, dfs(completeGraph, node, node, startTime))
-    echo fmt"{node}({startTime}) : {result}"
+    # Check for race
+    return bestNextScore + humanScore
+
+  if elephant.playing(time):
+    for nextElephant in nodes:
+      if nextElephant in visited:
+        continue
+      let
+        nextTimeElephant = time - 1 - neighborsElephant[nextElephant]
+        nextTime = max(human.time, nextTimeElephant)
+        nextScore = dfs(union(visited, toHashSet(@[elephant.valv])), nextTime, human, (nextElephant, nextTimeElephant))
+      bestNextScore = max(bestNextScore, nextScore)
+
+    # Check for race
+    return bestNextScore + elephantScore
+  
+  assert(false)
+
+proc solve(initDelays: Table[string, int], time: int): int =
+
+  if not part2:
+    for human in nodes:
+      let
+        humanStartTime = time - initDelays[human]
+        startTime = humanStartTime
+      result = max(result, dfs(initHashSet[string](), startTime, (human, humanStartTime), (human, -1)))
+  else:
+    for i, human in nodes[0 ..< ^1]:
+      for elephant in nodes[i+1 .. ^1]:
+        let
+          elephantStartTime = time - initDelays[elephant]
+          humanStartTime = time - initDelays[human]
+          startTime = max(elephantStartTime, humanStartTime)
+        result = max(result, dfs(initHashSet[string](), startTime, (human, humanStartTime), (elephant, elephantStartTime)))
 
 let content = readFile("./example.txt")
 
 let input = parseFile(content)
-echo solve(input, 30)
+Graph = setup(input)
+# Table of delays to get from starting node "AA" to current
+let initDelays = Graph["AA"].neighbors
+Graph.del("AA")
+
+for node in Graph.keys():
+  nodes.add(node)
+
+echo solve(initDelays, 30)
+part2 = true
+echo solve(initDelays, 26)

@@ -33,7 +33,7 @@ proc parseFile(content: string): HashSet[Point] =
     # a = begin, b = end
     for i, a in rocks[0..^2]:
       let b = rocks[i+1]
-      echo fmt"a = {a}, b = {b}"
+      # echo fmt"a = {a}, b = {b}"
       for col in min(a.col, b.col) .. max(a.col, b.col):
         let toPush = Point((a.row, col))
         result.incl(toPush)
@@ -105,7 +105,7 @@ let content = readFile("./input.txt")
 let occupied = parseFile(content)
 
 occupied.draw()
-echo fmt"{maxRow}, {minCol}-{maxCol}"
+# echo fmt"{maxRow}, {minCol}-{maxCol}"
 echo solve(occupied)
 part2 = true
 echo solve(occupied)
